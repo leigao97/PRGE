@@ -1,1 +1,24 @@
 
+# P-RGE
+
+### Step 1: Create Conda Environment and Install Packages
+```bash
+conda create -n PRGE python=3.10
+conda activate PRGE
+pip install -r requirments.txt 
+```
+
+### Step 2: Run expriments 
+We provide detailed hyperparameter settings in the `sweeps` folder. 
+
+An example use of sweep for full fine-tuning LLaMA-7B with ZO-SGD on the COPA task is as follows:
+```bash
+~> wandb sweep sweeps/Copa_llama-7b/zo_sgd/zo_sgd_copa_ft.yml
+wandb: Creating sweep from: zo-bench/sweeps/Copa_llama-7b/zo_sgd/zo_sgd_copa_ft.yml
+wandb: Created sweep with ID: <ID>
+wandb: View sweep at: https://wandb.ai/<unique ID>
+wandb: Run sweep agent with: wandb agent <unique ID>
+~> wandb agent <unique ID>
+```
+
+### Step 3: Check `android` Folder for On-device Expriments 
