@@ -16,7 +16,7 @@ This code uses r26d: [Android NDK page](https://developer.android.com/ndk)
 
 ```bash
 export QNN_SDK_ROOT=/opt/qcom/aistack/qairt/2.23.0.240601
-export ANDROID_NDK_ROOT=/home/lei/android-ndk-r26d
+export ANDROID_NDK_ROOT=./android-ndk-r26d
 
 export LD_LIBRARY_PATH=$QNN_SDK_ROOT/lib/x86_64-linux-clang/:$LD_LIBRARY_PATH
 export EXECUTORCH_ROOT=./executorch
