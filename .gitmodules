@@ -1,0 +1,3 @@
+[submodule "android/executorch"]
+	path = android/executorch
+	url = https://github.com/pytorch/executorch
