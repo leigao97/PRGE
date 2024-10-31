@@ -9,9 +9,9 @@ pip install -r requirements.txt
 ```
 
 ### Step 2: Run expriments 
-We provide detailed hyperparameter settings in the `sweeps` folder. 
+Detailed hyperparameter configurations can be found in the sweeps folder. 
 
-An example use of sweep for full fine-tuning LLaMA-7B with ZO-SGD on the COPA task is as follows:
+An example use of sweep for fine-tuning TinyLlama-1.1B with P-RGE on the glue dataset:
 ```bash
 ~> wandb sweep sweeps/P-RGE/glue-tinyllama.yaml
 wandb: Creating sweep from: sweeps/P-RGE/glue-tinyllama.yaml
