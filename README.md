@@ -9,7 +9,7 @@ pip install -r requirements.txt
 ```
 
 ### Step 2: Run expriments 
-Detailed hyperparameter configurations can be found in the sweeps folder. 
+Detailed hyperparameter configurations can be found in the `sweeps` folder. 
 
 An example use of sweep for fine-tuning TinyLlama-1.1B with P-RGE on the glue dataset:
 ```bash
