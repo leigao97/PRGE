@@ -86,8 +86,8 @@ def main():
         args.compute_dtype = "fp32"
     compute_dtype = compute_types[args.compute_dtype]
 
-    run_name = f"test_v2_{args.task_name}-{args.optimizer}-{args.model_name_or_path}-n{args.n}-bs{args.per_device_train_batch_size}-lr{args.learning_rate}-eps{args.eps}-epochs{args.num_train_epochs}_seed{args.seed}_split{args.split}_mp{args.mixed_precision}_dtype{compute_dtype}_peft{args.peft}_r{args.lora_rank}_alpha{args.lora_alpha}"
-    wandb.init(project="MeZO-LLM", name=run_name, config=args)
+    run_name = f"{args.task_name}-{args.optimizer}-{args.model_name_or_path}-n{args.n}-bs{args.per_device_train_batch_size}-lr{args.learning_rate}-eps{args.eps}-epochs{args.num_train_epochs}_seed{args.seed}_split{args.split}_mp{args.mixed_precision}_dtype{compute_dtype}_peft{args.peft}_r{args.lora_rank}_alpha{args.lora_alpha}"
+    wandb.init(project="PRGE", name=run_name, config=args)
     print(f"Run name: {run_name}")
         
 
