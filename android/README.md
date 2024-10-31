@@ -13,7 +13,7 @@ This code uses 2.23.0.240601: [QNN SDK website](https://www.qualcomm.com/develop
 This code uses r26d: [Android NDK page](https://developer.android.com/ndk)
 
 ### Step 3: Set Environment Variables
-
+Change the `QNN_SDK_ROOT` and `ANDROID_NDK_ROOT` path accordingly. 
 ```bash
 export QNN_SDK_ROOT=/opt/qcom/aistack/qairt/2.23.0.240601
 export ANDROID_NDK_ROOT=./android-ndk-r26d
