@@ -1,0 +1,33 @@
+program: main.py
+method: grid
+name: PRGE-squad-llama-7b
+metric:
+  name: "eval/max_f1"
+  goal: maximize
+parameters:
+  task_name:
+    value: "squad"
+  model_name_or_path:
+    value: "meta-llama/Llama-2-7b-hf"
+  max_iterations:
+    value: 20000
+  lora_rank:
+    value: 16
+  lora_alpha:
+    value: 32
+  spsa_config:
+    values: [
+      '{"n": 1, "per_device_train_batch_size": 16, "split": false}',
+      '{"n": 16, "per_device_train_batch_size": 1, "split": false}',
+      '{"n": 4, "per_device_train_batch_size": 4, "split": false}',
+      '{"n": 2, "per_device_train_batch_size": 8, "split": false}',
+      '{"n": 8, "per_device_train_batch_size": 2, "split": false}'
+    ]
+  learning_rate:
+    values: [5e-5, 1e-4, 5e-4, 1e-3]
+  logging_steps:
+    value: 500
+  compute_dtype:
+    value: "fp16"
+  per_device_eval_batch_size:
+    value: 1

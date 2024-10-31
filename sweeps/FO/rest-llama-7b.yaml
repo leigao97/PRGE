@@ -1,0 +1,29 @@
+program: main.py
+method: grid
+name: FO-rest-llama-7b
+metric:
+  name: "eval/max_accuracy"
+  goal: maximize
+parameters:
+  task_name:
+    values: ["sst2", "rte", "boolq", "multirc", "wsc", "wic", "copa" ,"winogrande"]
+  model_name_or_path:
+    value: "meta-llama/Llama-2-7b-hf"
+  max_iterations:
+    value: 1000
+  lora_rank:
+    value: 16
+  lora_alpha:
+    value: 32
+  peft:
+    value: "no"
+  learning_rate:
+    values: [1e-5, 5e-5, 8e-5]
+  optimizer:
+    value: "fo"
+  mixed_precision:
+    value: "true"
+  per_device_train_batch_size:
+    value: 2
+  total_batch_size:
+    value: 8

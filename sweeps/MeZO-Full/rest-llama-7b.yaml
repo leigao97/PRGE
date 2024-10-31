@@ -1,0 +1,31 @@
+program: main.py
+method: grid
+name: MeZO-Full-rest-llama-7b
+metric:
+  name: "eval/max_accuracy"
+  goal: maximize
+parameters:
+  task_name:
+    values: ["sst2", "rte", "boolq", "multirc", "wsc", "wic", "copa" ,"winogrande"]
+  model_name_or_path:
+    value: "meta-llama/Llama-2-7b-hf"
+  max_iterations:
+    value: 20000
+  lora_rank:
+    value: 16
+  lora_alpha:
+    value: 32
+  spsa_config:
+    values: [
+      '{"n": 1, "per_device_train_batch_size": 16, "split": false}',
+    ]
+  peft:
+    value: "no"
+  eps:
+    value: 1e-3
+  learning_rate:
+    values: [1e-7, 5e-7, 1e-6]
+  logging_steps:
+    value: 500
+  compute_dtype:
+    value: "fp16"

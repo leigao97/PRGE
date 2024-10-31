@@ -1,0 +1,33 @@
+program: main.py
+method: grid
+name: FO-squad-llama-7b
+metric:
+  name: "eval/max_accuracy"
+  goal: maximize
+parameters:
+  task_name:
+    value: "squad"
+  model_name_or_path:
+    value: "meta-llama/Llama-2-7b-hf"
+  max_iterations:
+    value: 1000
+  lora_rank:
+    value: 16
+  lora_alpha:
+    value: 32
+  peft:
+    value: "no"
+  learning_rate:
+    values: [1e-7, 5e-7, 8e-7]
+  optimizer:
+    value: "fo"
+  per_device_train_batch_size:
+    value: 2
+  total_batch_size:
+    value: 8
+  per_device_eval_batch_size:
+    value: 1
+  logging_steps:
+    value: 500
+  mixed_precision:
+    value: "true"

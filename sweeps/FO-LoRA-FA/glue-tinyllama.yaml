@@ -1,0 +1,29 @@
+program: main.py
+method: grid
+name: FO-LoRA-FA-glue-tinyllama
+metric:
+  name: "eval/max_accuracy"
+  goal: maximize
+parameters:
+  task_name:
+    values: ["sst2", "rte", "qqp", "mrpc", "qnli", "wnli"]
+  model_name_or_path:
+    value: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  max_iterations:
+    value: 1000
+  lora_rank:
+    value: 16
+  lora_alpha:
+    value: 32
+  peft:
+    value: "lora-fa"
+  learning_rate:
+    values: [1e-4, 3e-4, 5e-4]
+  optimizer:
+    value: "fo"
+  per_device_train_batch_size:
+    value: 8
+  total_batch_size:
+    value: 8
+  mixed_precision:
+    value: "true"

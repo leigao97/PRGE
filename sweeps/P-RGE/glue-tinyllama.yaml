@@ -1,0 +1,31 @@
+program: main.py
+method: grid
+name: PRGE-glue-tinyllama
+metric:
+  name: "eval/max_accuracy"
+  goal: maximize
+parameters:
+  task_name:
+    values: ["sst2", "rte", "qqp", "mrpc", "qnli", "wnli"]
+  model_name_or_path:
+    value: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+  max_iterations:
+    value: 20000
+  lora_rank:
+    value: 16
+  lora_alpha:
+    value: 32
+  spsa_config:
+    values: [
+      '{"n": 1, "per_device_train_batch_size": 16, "split": false}',
+      '{"n": 16, "per_device_train_batch_size": 1, "split": false}',
+      '{"n": 4, "per_device_train_batch_size": 4, "split": false}',
+      '{"n": 2, "per_device_train_batch_size": 8, "split": false}',
+      '{"n": 8, "per_device_train_batch_size": 2, "split": false}'
+    ]
+  learning_rate:
+    values: [5e-5, 1e-4, 5e-4, 1e-3]
+  logging_steps:
+    value: 500
+  compute_dtype:
+    value: "fp16"
