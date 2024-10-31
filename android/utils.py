@@ -15,11 +15,11 @@ from typing import Callable, List, Optional
 import numpy as np
 
 import torch
-from executorch import exir
 from executorch.backends.qualcomm.partition.qnn_partitioner import QnnPartitioner
 from executorch.backends.qualcomm.quantizer.quantizer import (
     get_16a4w_qnn_ptq_config,
     get_default_16bit_qnn_ptq_config,
+    get_default_8bit_qnn_ptq_config,
     QnnQuantizer,
     QuantDtype,
 )
@@ -30,8 +30,9 @@ from executorch.backends.qualcomm.utils.utils import (
     capture_program,
     generate_htp_compiler_spec,
     generate_qnn_executorch_compiler_spec,
+    get_soc_to_arch_map,
 )
-from executorch.exir import EdgeCompileConfig, EdgeProgramManager
+from executorch.exir import EdgeCompileConfig, EdgeProgramManager, to_edge
 from executorch.exir.backend.backend_api import to_backend
 from executorch.exir.capture._config import ExecutorchBackendConfig
 from executorch.exir.passes.memory_planning_pass import MemoryPlanningPass
@@ -40,6 +41,22 @@ from torch.ao.quantization.quantize_pt2e import convert_pt2e, prepare_pt2e
 
 
 class SimpleADB:
+    """
+    A wrapper class for communicating with Android device
+
+    Attributes:
+        qnn_sdk (str): QNN SDK path setup in environment variable
+        build_path (str): Path where artifacts were built
+        pte_path (str): Path where executorch binary was stored
+        workspace (str): Folder for storing artifacts on android device
+        device_id (str): Serial number of android device
+        soc_model (str): Chipset of device
+        host_id (str): Hostname of machine where device connects
+        error_only (bool): Redirect stdio and leave error messages only
+        shared_buffer (bool): Apply zero-copy mechanism in runtime
+        runner (str): Runtime executor binary
+    """
+
     def __init__(
         self,
         qnn_sdk,
@@ -51,7 +68,8 @@ class SimpleADB:
         host_id=None,
         error_only=False,
         shared_buffer=False,
-        runner="examples/qualcomm/qnn_executor_runner",
+        dump_intermediate_outputs=False,
+        runner="examples/qualcomm/executor_runner/qnn_executor_runner",
     ):
         self.qnn_sdk = qnn_sdk
         self.build_path = build_path
@@ -62,14 +80,10 @@ class SimpleADB:
         self.working_dir = Path(self.pte_path[0]).parent.absolute()
         self.input_list_filename = "input_list.txt"
         self.etdump_path = f"{self.workspace}/etdump.etdp"
+        self.dump_intermediate_outputs = dump_intermediate_outputs
+        self.debug_output_path = f"{self.workspace}/debug_output.bin"
         self.output_folder = f"{self.workspace}/outputs"
-        arch_table = {
-            "SM8650": "75",
-            "SM8550": "73",
-            "SM8475": "69",
-            "SM8450": "69",
-        }
-        self.soc_model = arch_table[soc_model]
+        self.htp_arch = get_soc_to_arch_map()[soc_model]
         self.error_only = error_only
         self.shared_buffer = shared_buffer
         self.runner = runner
@@ -94,36 +108,32 @@ class SimpleADB:
             *self.pte_path,
             f"{self.qnn_sdk}/lib/aarch64-android/libQnnHtp.so",
             (
-                f"{self.qnn_sdk}/lib/hexagon-v{self.soc_model}/"
-                f"unsigned/libQnnHtpV{self.soc_model}Skel.so"
+                f"{self.qnn_sdk}/lib/hexagon-v{self.htp_arch}/"
+                f"unsigned/libQnnHtpV{self.htp_arch}Skel.so"
             ),
             (
                 f"{self.qnn_sdk}/lib/aarch64-android/"
-                f"libQnnHtpV{self.soc_model}Stub.so"
+                f"libQnnHtpV{self.htp_arch}Stub.so"
             ),
             f"{self.qnn_sdk}/lib/aarch64-android/libQnnHtpPrepare.so",
             f"{self.qnn_sdk}/lib/aarch64-android/libQnnSystem.so",
             f"{self.build_path}/{self.runner}",
             f"{self.build_path}/backends/qualcomm/libqnn_executorch_backend.so",
         ]
+        input_list_file, input_files = generate_inputs(
+            self.working_dir, self.input_list_filename, inputs, input_list
+        )
 
-        # prepare input list
-        if input_list is not None:
-            input_list_file = f"{self.working_dir}/{self.input_list_filename}"
-            with open(input_list_file, "w") as f:
-                f.write(input_list)
-                f.flush()
+        if input_list_file is not None:
+            # prepare input list
             artifacts.append(input_list_file)
 
         for artifact in artifacts:
             self._adb(["push", artifact, self.workspace])
 
         # input data
-        if inputs is not None:
-            for idx, data in enumerate(inputs):
-                file_name = f"{self.working_dir}/input_{idx}_0.raw"
-                data.detach().numpy().tofile(file_name)
-                self._adb(["push", file_name, self.workspace])
+        for file_name in input_files:
+            self._adb(["push", file_name, self.workspace])
 
         # custom files
         if files is not None:
@@ -141,13 +151,17 @@ class SimpleADB:
                     f"--input_list_path {self.input_list_filename}",
                     f"--etdump_path {self.etdump_path}",
                     "--shared_buffer" if self.shared_buffer else "",
+                    f"--debug_output_path {self.debug_output_path}",
+                    (
+                        "--dump_intermediate_outputs"
+                        if self.dump_intermediate_outputs
+                        else ""
+                    ),
                 ]
             )
             qnn_executor_runner_cmds = " ".join(
                 [
                     f"cd {self.workspace} &&",
-                    "export ADSP_LIBRARY_PATH=. &&",
-                    "export LD_LIBRARY_PATH=. &&",
                     f"./qnn_executor_runner {qnn_executor_runner_args}",
                 ]
             )
@@ -166,6 +180,13 @@ class SimpleADB:
         if callback:
             callback()
 
+    def pull_debug_output(self, etdump_path, debug_ouput_path, callback=None):
+        self._adb(["pull", self.etdump_path, etdump_path])
+        self._adb(["pull", self.debug_output_path, debug_ouput_path])
+        if callback:
+            callback()
+
+
 
 # TODO: refactor to support different backends
 def build_executorch_binary(
@@ -174,36 +195,17 @@ def build_executorch_binary(
     soc_model,
     file_name,
     dataset: List[torch.Tensor] | Callable[[torch.fx.GraphModule], None],
-    custom_annotations=(),
     skip_node_id_set=None,
     skip_node_op_set=None,
     quant_dtype: Optional[QuantDtype] = None,
-    per_channel_linear=False,  # TODO: remove this once QNN fully supports linear
+    custom_quantizer=None,
     shared_buffer=False,
     metadata=None,
-    act_observer=MovingAverageMinMaxObserver,
+    dump_intermediate_outputs=False,
+    custom_pass_config=frozenset(),
 ):
     if quant_dtype is not None:
-        quantizer = QnnQuantizer()
-        quantizer.add_custom_quant_annotations(custom_annotations)
-        quantizer.set_per_channel_linear_quant(per_channel_linear)
-
-        if quant_dtype == QuantDtype.use_8a8w:
-            pass  # default setting
-        elif quant_dtype == QuantDtype.use_16a16w:
-            quantizer.add_16bit_quant_ops(quantizer.SUPPORTED_OPS)
-            quantizer.set_bit16_op_quant_config(
-                get_default_16bit_qnn_ptq_config(act_observer=act_observer)
-            )
-        elif quant_dtype == QuantDtype.use_16a4w:
-            quantizer.add_16bit_quant_ops(quantizer.SUPPORTED_OPS)
-            quantizer.set_bit16_op_quant_config(
-                get_16a4w_qnn_ptq_config(act_observer=act_observer)
-            )
-            quantizer.set_per_channel_weight_dtype(weight_dtype_for_16bit_act="int4")
-        else:
-            raise AssertionError(f"No support for QuantDtype {quant_dtype}.")
-
+        quantizer = custom_quantizer or make_quantizer(quant_dtype=quant_dtype)
         captured_model = torch.export.export(model, inputs).module()
         annotated_model = prepare_pt2e(captured_model, quantizer)
         print("Quantizing the model...")
@@ -213,64 +215,50 @@ def build_executorch_binary(
         else:
             for data in dataset:
                 annotated_model(*data)
+
         quantized_model = convert_pt2e(annotated_model)
-
-        edge_prog = capture_program(quantized_model, inputs)
+        edge_prog = capture_program(quantized_model, inputs, custom_pass_config)
     else:
-        edge_prog = capture_program(model, inputs)
-
-    arch_table = {
-        "SM8650": QcomChipset.SM8650,
-        "SM8550": QcomChipset.SM8550,
-        "SM8475": QcomChipset.SM8475,
-        "SM8450": QcomChipset.SM8450,
-    }
+        edge_prog = capture_program(model, inputs, custom_pass_config)
 
     backend_options = generate_htp_compiler_spec(
         use_fp16=False if quant_dtype else True
     )
     qnn_partitioner = QnnPartitioner(
         generate_qnn_executorch_compiler_spec(
-            soc_model=arch_table[soc_model],
+            soc_model=getattr(QcomChipset, soc_model),
             backend_options=backend_options,
-            debug=False,
-            saver=False,
             shared_buffer=shared_buffer,
-            profile=False,
+            dump_intermediate_outputs=dump_intermediate_outputs,
         ),
         skip_node_id_set,
         skip_node_op_set,
     )
 
     executorch_config = ExecutorchBackendConfig(
-        extract_constant_segment=False,
         # For shared buffer, user must pass the memory address
         # which is allocated by RPC memory to executor runner.
         # Therefore, won't want to pre-allocate
         # by memory manager in runtime.
         memory_planning_pass=MemoryPlanningPass(
-            memory_planning_algo="greedy",
             alloc_graph_input=not shared_buffer,
             alloc_graph_output=not shared_buffer,
         ),
-        extract_delegate_segments=True,
     )
 
     if metadata is None:
-        edge_prog.exported_program = to_backend(
-            edge_prog.exported_program, qnn_partitioner
-        )
-        edge_prog.exported_program.graph_module.graph.print_tabular()
+        exported_program = to_backend(edge_prog.exported_program, qnn_partitioner)
+        exported_program.graph_module.graph.print_tabular()
 
-        from executorch.sdk.backend_debug.delegation_info import get_delegation_info
+        from executorch.devtools.backend_debug.delegation_info import get_delegation_info
         from tabulate import tabulate
-        graph_module = edge_prog.exported_program.module()
+        graph_module = exported_program.graph_module
         delegation_info = get_delegation_info(graph_module)
         print(delegation_info.get_summary())
         df = delegation_info.get_operator_delegation_dataframe()
         print(tabulate(df, headers="keys", tablefmt="fancy_grid"))
 
-        exec_prog = edge_prog.to_executorch(config=executorch_config)
+        exec_prog = to_edge(exported_program).to_executorch(config=executorch_config)
         with open(f"{file_name}.pte", "wb") as file:
             file.write(exec_prog.buffer)
     else:
@@ -292,49 +280,6 @@ def make_output_dir(path: str):
             os.remove(os.path.join(path, f))
         os.removedirs(path)
     os.makedirs(path)
-
-
-def topk_accuracy(predictions, targets, k):
-    def solve(prob, target, k):
-        _, indices = torch.topk(prob, k=k, sorted=True)
-        golden = torch.reshape(target, [-1, 1])
-        correct = (golden == indices) * 1.0
-        top_k_accuracy = torch.mean(correct) * k
-        return top_k_accuracy
-
-    cnt = 0
-    for index, pred in enumerate(predictions):
-        cnt += solve(torch.from_numpy(pred), targets[index], k)
-
-    return cnt * 100.0 / len(predictions)
-
-
-def segmentation_metrics(predictions, targets, classes):
-    def make_confusion(goldens, predictions, num_classes):
-        def histogram(golden, predict):
-            mask = golden < num_classes
-            hist = np.bincount(
-                num_classes * golden[mask].astype(int) + predict[mask],
-                minlength=num_classes**2,
-            ).reshape(num_classes, num_classes)
-            return hist
-
-        confusion = np.zeros((num_classes, num_classes))
-        for g, p in zip(goldens, predictions):
-            confusion += histogram(g.flatten(), p.flatten())
-
-        return confusion
-
-    eps = 1e-6
-    confusion = make_confusion(targets, predictions, len(classes))
-    pa = np.diag(confusion).sum() / (confusion.sum() + eps)
-    mpa = np.mean(np.diag(confusion) / (confusion.sum(axis=1) + eps))
-    iou = np.diag(confusion) / (
-        confusion.sum(axis=1) + confusion.sum(axis=0) - np.diag(confusion) + eps
-    )
-    miou = np.mean(iou)
-    cls_iou = dict(zip(classes, iou))
-    return (pa, mpa, miou, cls_iou)
 
 
 def setup_common_args_and_variables():
@@ -446,3 +391,25 @@ def parse_skip_delegation_node(args):
         print("Skipping following node ops: ", skip_node_op_set)
 
     return skip_node_id_set, skip_node_op_set
+
+
+def generate_inputs(dest_path: str, file_name: str, inputs=None, input_list=None):
+    input_list_file = None
+    input_files = []
+
+    # Prepare input list
+    if input_list is not None:
+        input_list_file = f"{dest_path}/{file_name}"
+        with open(input_list_file, "w") as f:
+            f.write(input_list)
+            f.flush()
+
+    # Prepare input data
+    if inputs is not None:
+        for idx, data in enumerate(inputs):
+            for i, d in enumerate(data):
+                file_name = f"{dest_path}/input_{idx}_{i}.raw"
+                d.detach().numpy().tofile(file_name)
+                input_files.append(file_name)
+
+    return input_list_file, input_files

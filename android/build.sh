@@ -1,9 +1,27 @@
-export QNN_SDK_ROOT=/opt/qcom/aistack/qairt/2.23.0.240601
-export ANDROID_NDK_ROOT=/home/lei/android-ndk-r26d
-export EXECUTORCH_ROOT=./executorch
+if [ -z "$QNN_SDK_ROOT" ]; then
+    echo "Error: QNN_SDK_ROOT is not set."
+    exit 1
+fi
 
-export LD_LIBRARY_PATH=$QNN_SDK_ROOT/lib/x86_64-linux-clang/:$LD_LIBRARY_PATH
-export PYTHONPATH=$EXECUTORCH_ROOT/..
+if [ -z "$ANDROID_NDK_ROOT" ]; then
+    echo "Error: ANDROID_NDK_ROOT is not set."
+    exit 1
+fi
+
+if [ -z "$EXECUTORCH_ROOT" ]; then
+    echo "Error: EXECUTORCH_ROOT is not set."
+    exit 1
+fi
+
+if [ -z "$LD_LIBRARY_PATH" ]; then
+    echo "Error: LD_LIBRARY_PATH is not set."
+    exit 1
+fi
+
+if [ -z "$PYTHONPATH" ]; then
+    echo "Error: PYTHONPATH is not set."
+    exit 1
+fi
 
 git submodule sync
 git submodule update --init --recursive

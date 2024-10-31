@@ -94,7 +94,7 @@ if __name__ == "__main__":
         args.model,
         f"{args.artifact}/{pte_filename}",
         dataset=None,
-        custom_annotations=(),
+        # custom_annotations=(),
         quant_dtype=None,
         shared_buffer=args.shared_buffer,
         skip_node_id_set=None,
