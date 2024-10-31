@@ -13,8 +13,8 @@ We provide detailed hyperparameter settings in the `sweeps` folder.
 
 An example use of sweep for full fine-tuning LLaMA-7B with ZO-SGD on the COPA task is as follows:
 ```bash
-~> wandb sweep sweeps/Copa_llama-7b/zo_sgd/zo_sgd_copa_ft.yml
-wandb: Creating sweep from: zo-bench/sweeps/Copa_llama-7b/zo_sgd/zo_sgd_copa_ft.yml
+~> wandb sweep sweeps/P-RGE/glue-tinyllama.yaml
+wandb: Creating sweep from: sweeps/P-RGE/glue-tinyllama.yaml
 wandb: Created sweep with ID: <ID>
 wandb: View sweep at: https://wandb.ai/<unique ID>
 wandb: Run sweep agent with: wandb agent <unique ID>
