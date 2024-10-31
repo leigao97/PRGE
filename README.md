@@ -5,7 +5,7 @@
 ```bash
 conda create -n PRGE python=3.10
 conda activate PRGE
-pip install -r requirments.txt 
+pip install -r requirements.txt 
 ```
 
 ### Step 2: Run expriments 
