@@ -1,5 +1,6 @@
 
-# P-RGE
+# Enabling Efficient On-Device Fine-Tuning of LLMs Using Only Inference Engines
+[[Paper](https://arxiv.org/abs/2409.15520)][[Slides](https://github.com/leigao97/PRGE/blob/main/assets/PRGE-slides.pdf)]
 
 ### Step 1: Create Conda Environment and Install Packages
 ```bash
