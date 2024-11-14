@@ -22,3 +22,16 @@ wandb: Run sweep agent with: wandb agent <unique ID>
 ```
 
 ### Step 3: Check `android` Folder for On-device Expriments 
+
+### Citation
+```
+@misc{gao2024enablingefficientondevicefinetuning,
+      title={Enabling Efficient On-Device Fine-Tuning of LLMs Using Only Inference Engines}, 
+      author={Lei Gao and Amir Ziashahabi and Yue Niu and Salman Avestimehr and Murali Annavaram},
+      year={2024},
+      eprint={2409.15520},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2409.15520}, 
+}
+```
