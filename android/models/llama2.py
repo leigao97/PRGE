@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from dataclasses import dataclass
 from torch import nn
 
-from models.lora_android import LoRAInt8Linear
+from models.lora_android import LoRALinear
 
 @dataclass
 class ModelArgs:
@@ -131,10 +131,10 @@ class Attention(nn.Module):
         self.n_rep = self.n_local_heads // self.n_local_kv_heads
         self.head_dim = args.dim // args.n_heads
         self.q_proj = nn.Linear(args.dim, args.n_heads * self.head_dim, bias=False)
-        # self.wq_lora = LoRAInt8Linear(args.dim, args.n_heads * self.head_dim, r=8, lora_alpha=16)
+        # self.wq_lora = LoRALinear(args.dim, args.n_heads * self.head_dim, r=8, lora_alpha=16)
         self.k_proj = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
         self.v_proj = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
-        # self.wv_lora = LoRAInt8Linear(args.dim, self.n_kv_heads * self.head_dim, r=8, lora_alpha=16)
+        # self.wv_lora = LoRALinear(args.dim, self.n_kv_heads * self.head_dim, r=8, lora_alpha=16)
         self.o_proj = nn.Linear(args.n_heads * self.head_dim, args.dim, bias=False)
 
         mask = torch.full((1, 1, args.max_seq_len, args.max_seq_len), float("-inf"))

@@ -3,7 +3,7 @@ from torch import nn
 import math
 
 
-class LoRAInt8Linear(nn.Module):
+class LoRALinear(nn.Module):
     def __init__(self, in_features: int = 4, out_features: int = 4, r: int = 2, lora_alpha: int = 2):
         # nn.Linear.__init__(self, in_features, out_features, **kwargs)
         super().__init__()
